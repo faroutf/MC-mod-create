@@ -16,10 +16,9 @@ import java.util.List;
 
 public class QuestScreen extends Screen {
     private static final int WIDTH = 440;
-    private static final int HEIGHT = 400;
     private static final int QUEST_ROW_HEIGHT = 20;
 
-    private int leftPos, topPos;
+    private int leftPos, topPos, panelHeight;
 
     public QuestScreen() {
         super(Component.translatable("screen.daily_quests.quests"));
@@ -27,12 +26,26 @@ public class QuestScreen extends Screen {
 
     @Override
     protected void init() {
+        // Fit panel within screen with margins
+        this.panelHeight = Math.min(this.height - 30, 380);
         this.leftPos = (this.width - WIDTH) / 2;
-        this.topPos = (this.height - HEIGHT) / 2;
+        this.topPos = (this.height - panelHeight) / 2;
 
-        // Claim button at the bottom, below the panel
+        rebuildButtons();
+    }
+
+    @Override
+    protected void rebuildWidgets() {
+        // Called by vanilla when screen needs to refresh
+        rebuildButtons();
+    }
+
+    private void rebuildButtons() {
+        this.clearWidgets();
+
+        // Claim button inside panel at bottom
         int buttonX = leftPos + WIDTH / 2 - 75;
-        int buttonY = topPos + HEIGHT + 6;
+        int buttonY = topPos + panelHeight - 24;
         Button claimButton = Button.builder(
             Component.translatable("screen.daily_quests.claim_reward"),
             btn -> claimReward()
@@ -42,41 +55,32 @@ public class QuestScreen extends Screen {
         // Accept/cancel buttons per quest row
         int y = topPos + 24;
         for (QuestCategory cat : QuestCategory.VALUES) {
-            y += 16; // category header
+            y += 16;
             for (SyncQuestDataPacket.QuestProgressEntry entry : ClientQuestData.getEntriesForCategory(cat)) {
-                if (entry == null) continue;
-                String questId = entry.questId();
-
-                if (entry.completed()) {
+                if (entry == null || entry.completed()) {
                     y += QUEST_ROW_HEIGHT;
                     continue;
                 }
 
+                String questId = entry.questId();
+                int btnX = leftPos + WIDTH - 55;
+                int btnY = y - 1;
+
                 if (ClientQuestData.isAccepted(questId)) {
-                    // Cancel button
-                    int btnX = leftPos + WIDTH - 55;
-                    Button cancelBtn = Button.builder(
+                    this.addRenderableWidget(Button.builder(
                         Component.literal("X"),
                         btn -> cancelQuest(questId)
-                    ).bounds(btnX, y - 1, 16, 16).build();
-                    this.addRenderableWidget(cancelBtn);
-                } else {
-                    // Accept button (only if can accept more)
-                    boolean canAccept = ClientQuestData.canAcceptMore()
-                        && ClientQuestData.canAcceptInCategory(cat);
-                    if (canAccept) {
-                        int btnX = leftPos + WIDTH - 55;
-                        Button acceptBtn = Button.builder(
-                            Component.literal("+"),
-                            btn -> acceptQuest(questId)
-                        ).bounds(btnX, y - 1, 16, 16).build();
-                        this.addRenderableWidget(acceptBtn);
-                    }
+                    ).bounds(btnX, btnY, 16, 16).build());
+                } else if (ClientQuestData.canAcceptMore() && ClientQuestData.canAcceptInCategory(cat)) {
+                    this.addRenderableWidget(Button.builder(
+                        Component.literal("+"),
+                        btn -> acceptQuest(questId)
+                    ).bounds(btnX, btnY, 16, 16).build());
                 }
 
                 y += QUEST_ROW_HEIGHT;
             }
-            y += 4; // gap between categories
+            y += 4;
         }
     }
 
@@ -84,12 +88,15 @@ public class QuestScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics, mouseX, mouseY, partialTick);
 
-        // Panel background
-        graphics.fill(leftPos, topPos, leftPos + WIDTH, topPos + HEIGHT, 0xC0101010);
-        graphics.fill(leftPos, topPos, leftPos + WIDTH, topPos + HEIGHT, 0x80FFFFFF);
+        // Panel background — single dark fill, no white overlay
+        graphics.fill(leftPos, topPos, leftPos + WIDTH, topPos + panelHeight, 0xE0101010);
+
+        // Panel border
+        graphics.fill(leftPos, topPos, leftPos + WIDTH, topPos + 1, 0x80FFFFFF);
+        graphics.fill(leftPos, topPos + panelHeight - 1, leftPos + WIDTH, topPos + panelHeight, 0x80FFFFFF);
 
         // Title
-        int titleY = topPos + 6;
+        int titleY = topPos + 7;
         graphics.drawCenteredString(font,
             Component.translatable("screen.daily_quests.quests").getString() + " — Day " + ClientQuestData.getQuestDay(),
             leftPos + WIDTH / 2, titleY, 0xFFFFFF);
@@ -119,7 +126,7 @@ public class QuestScreen extends Screen {
                 Component.translatable("screen.daily_quests.categories_progress", completed).getString();
             color = 0xAAAAAA;
         }
-        graphics.drawCenteredString(font, statusText, leftPos + WIDTH / 2, topPos + HEIGHT - 14, color);
+        graphics.drawCenteredString(font, statusText, leftPos + WIDTH / 2, topPos + panelHeight - 34, color);
 
         super.render(graphics, mouseX, mouseY, partialTick);
     }
@@ -128,14 +135,12 @@ public class QuestScreen extends Screen {
         List<SyncQuestDataPacket.QuestProgressEntry> entries = ClientQuestData.getEntriesForCategory(cat);
         boolean catComplete = ClientQuestData.getCompletedCategories().contains(cat);
 
-        // Category header
         String catName = Component.translatable("category.daily_quests." + cat.getName()).getString();
         String marker = catComplete ? " ✓" : "";
         int headerColor = catComplete ? 0x55FF55 : 0xFFAA00;
         graphics.drawString(font, catName + marker, x, y, headerColor);
         y += 14;
 
-        // Quest rows
         for (SyncQuestDataPacket.QuestProgressEntry entry : entries) {
             if (entry == null) continue;
 
@@ -158,7 +163,6 @@ public class QuestScreen extends Screen {
 
             graphics.drawString(font, "  " + desc + progress, x + 8, y, textColor);
 
-            // Progress bar for accepted quests
             if (isAccepted && !questComplete && entry.requiredAmount() > 0) {
                 int barX = x + 200;
                 int barY = y + 4;
