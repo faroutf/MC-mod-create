@@ -9,12 +9,30 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @SuppressWarnings("deprecation")
 @EventBusSubscriber(modid = DailyQuests.MODID, bus = EventBusSubscriber.Bus.GAME)
 public class DailyResetHandler {
     private static int tickCounter = 0;
+
+    // Sync data immediately when player logs in
+    @SubscribeEvent
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        PlayerQuestData data = player.getData(ModAttachments.PLAYER_QUEST_DATA.get());
+        long currentDay = player.serverLevel().getDayTime() / 24000;
+
+        if (data.getQuestDay() != currentDay || !data.hasQuests()) {
+            QuestManager.clearDefinitions();
+            QuestManager.generateDailyQuests(player, data);
+            sendQuestSummaryChat(player, data);
+        } else {
+            // Same day reconnect — just sync existing data to client
+            QuestManager.syncToPlayer(player);
+        }
+    }
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
