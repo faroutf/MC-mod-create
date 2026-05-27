@@ -13,5 +13,5 @@ public class ModAttachments {
 
     public static final Supplier<AttachmentType<PlayerQuestData>> PLAYER_QUEST_DATA =
         ATTACHMENT_TYPES.register("player_quest_data",
-            () -> AttachmentType.serializable(PlayerQuestData::new).build());
+            () -> AttachmentType.serializable(PlayerQuestData::new).copyOnDeath().build());
 }
