@@ -3,6 +3,8 @@ package com.faroutf.daily_quests.quest;
 import com.faroutf.daily_quests.Config;
 import com.faroutf.daily_quests.DailyQuests;
 import com.faroutf.daily_quests.ModAttachments;
+import com.faroutf.daily_quests.network.PacketHandler;
+import com.faroutf.daily_quests.network.SyncQuestDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
@@ -53,6 +55,7 @@ public final class QuestManager {
         }
 
         DailyQuests.LOGGER.debug("Generated daily quests for {} on day {}", player.getName().getString(), currentDay);
+        syncToClient(player, data);
     }
 
     /**
@@ -84,6 +87,9 @@ public final class QuestManager {
             break; // Only advance the first matching non-completed quest
         }
 
+        if (anyCompleted) {
+            syncToClient(player, data);
+        }
         return anyCompleted;
     }
 
@@ -117,5 +123,33 @@ public final class QuestManager {
 
     public static void clearDefinitions() {
         definitionRegistry.clear();
+    }
+
+    private static void syncToClient(ServerPlayer player, PlayerQuestData data) {
+        SyncQuestDataPacket packet = buildSyncPacket(data);
+        PacketHandler.sendToPlayer(packet, player);
+    }
+
+    public static SyncQuestDataPacket buildSyncPacket(PlayerQuestData data) {
+        List<QuestCategory> primary = new ArrayList<>(data.getPrimaryCategories());
+        List<SyncQuestDataPacket.QuestProgressEntry> entries = new ArrayList<>();
+
+        for (QuestCategory cat : QuestCategory.VALUES) {
+            List<QuestProgress> quests = data.getQuests(cat);
+            if (quests != null) {
+                for (QuestProgress p : quests) {
+                    entries.add(new SyncQuestDataPacket.QuestProgressEntry(
+                        p.getQuestId(), cat,
+                        p.getCurrentAmount(), p.getRequiredAmount(), p.isCompleted()
+                    ));
+                }
+            }
+        }
+
+        Set<QuestCategory> completed = EnumSet.copyOf(data.getCompletedCategories());
+
+        return new SyncQuestDataPacket(
+            data.getQuestDay(), primary, entries, completed, data.isRewardClaimed()
+        );
     }
 }
