@@ -1,0 +1,13 @@
+{
+  "itemGroup.daily_quests": "Example Mod Tab",
+  "block.daily_quests.example_block": "Example Block",
+  "item.daily_quests.example_item": "Example Item",
+
+  "daily_quests.configuration.title": " Daily Quests Configs",
+  "daily_quests.configuration.section.daily_quests.common.toml": " Daily Quests Configs",
+  "daily_quests.configuration.section.daily_quests.common.toml.title": " Daily Quests Configs",
+  "daily_quests.configuration.items": "Item List",
+  "daily_quests.configuration.logDirtBlock": "Log Dirt Block",
+  "daily_quests.configuration.magicNumberIntroduction": "Magic Number Text",
+  "daily_quests.configuration.magicNumber": "Magic Number"
+}
