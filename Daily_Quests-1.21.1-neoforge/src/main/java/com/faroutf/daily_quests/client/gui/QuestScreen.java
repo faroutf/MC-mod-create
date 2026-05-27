@@ -83,17 +83,16 @@ public class QuestScreen extends Screen {
             rebuildButtons();
         }
 
-        // Full-screen dark overlay — NO blur (no renderBackground call)
-        graphics.fill(0, 0, this.width, this.height, 0xDD000000);
+        // Render vanilla background blur, then cover it with opaque overlay
+        renderBackground(graphics, mouseX, mouseY, partialTick);
 
-        // Panel background
-        graphics.fill(leftPos, topPos, leftPos + WIDTH, topPos + panelHeight, 0xC0101010);
+        // Fully opaque dark overlay to hide blur — ensures crisp text
+        graphics.fill(0, 0, this.width, this.height, 0xFF000000);
 
-        // Panel border
-        graphics.fill(leftPos - 1, topPos - 1, leftPos + WIDTH + 1, topPos, 0xFF555555);
-        graphics.fill(leftPos - 1, topPos + panelHeight, leftPos + WIDTH + 1, topPos + panelHeight + 1, 0xFF555555);
-        graphics.fill(leftPos - 1, topPos, leftPos, topPos + panelHeight, 0xFF555555);
-        graphics.fill(leftPos + WIDTH, topPos, leftPos + WIDTH + 1, topPos + panelHeight, 0xFF555555);
+        // Fully opaque panel background (like vanilla inventory)
+        graphics.fill(leftPos - 2, topPos - 2, leftPos + WIDTH + 2, topPos + panelHeight + 2, 0xFFC6C6C6);
+        graphics.fill(leftPos - 1, topPos - 1, leftPos + WIDTH + 1, topPos + panelHeight + 1, 0xFF000000);
+        graphics.fill(leftPos, topPos, leftPos + WIDTH, topPos + panelHeight, 0xFF1E1E1E);
 
         // Title
         int titleY = topPos + 7;
@@ -158,7 +157,7 @@ public class QuestScreen extends Screen {
                 textColor = 0xFFCC00;
             } else {
                 progress = " (" + entry.requiredAmount() + ")";
-                textColor = 0x888888;
+                textColor = 0xFFAAAAAA;
             }
 
             graphics.drawString(font, "  " + desc + progress, x + 8, y, textColor);
