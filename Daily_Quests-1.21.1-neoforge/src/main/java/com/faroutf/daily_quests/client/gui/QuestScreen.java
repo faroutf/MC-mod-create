@@ -19,6 +19,7 @@ public class QuestScreen extends Screen {
     private static final int QUEST_ROW_HEIGHT = 20;
 
     private int leftPos, topPos, panelHeight;
+    private int lastDataVersion = -1;
 
     public QuestScreen() {
         super(Component.translatable("screen.daily_quests.quests"));
@@ -26,33 +27,24 @@ public class QuestScreen extends Screen {
 
     @Override
     protected void init() {
-        // Fit panel within screen with margins
-        this.panelHeight = Math.min(this.height - 30, 380);
+        this.panelHeight = Math.min(this.height - 20, 380);
         this.leftPos = (this.width - WIDTH) / 2;
         this.topPos = (this.height - panelHeight) / 2;
-
-        rebuildButtons();
-    }
-
-    @Override
-    protected void rebuildWidgets() {
-        // Called by vanilla when screen needs to refresh
         rebuildButtons();
     }
 
     private void rebuildButtons() {
         this.clearWidgets();
 
-        // Claim button inside panel at bottom
+        // Claim button
         int buttonX = leftPos + WIDTH / 2 - 75;
         int buttonY = topPos + panelHeight - 24;
-        Button claimButton = Button.builder(
+        this.addRenderableWidget(Button.builder(
             Component.translatable("screen.daily_quests.claim_reward"),
             btn -> claimReward()
-        ).bounds(buttonX, buttonY, 150, 20).build();
-        this.addRenderableWidget(claimButton);
+        ).bounds(buttonX, buttonY, 150, 20).build());
 
-        // Accept/cancel buttons per quest row
+        // Accept/cancel buttons
         int y = topPos + 24;
         for (QuestCategory cat : QuestCategory.VALUES) {
             y += 16;
@@ -77,23 +69,31 @@ public class QuestScreen extends Screen {
                         btn -> acceptQuest(questId)
                     ).bounds(btnX, btnY, 16, 16).build());
                 }
-
                 y += QUEST_ROW_HEIGHT;
             }
             y += 4;
         }
+        lastDataVersion = ClientQuestData.getDataVersion();
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
+        // Check if data has changed (e.g. after server syncs accept/cancel)
+        if (ClientQuestData.getDataVersion() != lastDataVersion) {
+            rebuildButtons();
+        }
 
-        // Panel background — single dark fill, no white overlay
-        graphics.fill(leftPos, topPos, leftPos + WIDTH, topPos + panelHeight, 0xE0101010);
+        // Full-screen dark overlay — NO blur (no renderBackground call)
+        graphics.fill(0, 0, this.width, this.height, 0xDD000000);
+
+        // Panel background
+        graphics.fill(leftPos, topPos, leftPos + WIDTH, topPos + panelHeight, 0xC0101010);
 
         // Panel border
-        graphics.fill(leftPos, topPos, leftPos + WIDTH, topPos + 1, 0x80FFFFFF);
-        graphics.fill(leftPos, topPos + panelHeight - 1, leftPos + WIDTH, topPos + panelHeight, 0x80FFFFFF);
+        graphics.fill(leftPos - 1, topPos - 1, leftPos + WIDTH + 1, topPos, 0xFF555555);
+        graphics.fill(leftPos - 1, topPos + panelHeight, leftPos + WIDTH + 1, topPos + panelHeight + 1, 0xFF555555);
+        graphics.fill(leftPos - 1, topPos, leftPos, topPos + panelHeight, 0xFF555555);
+        graphics.fill(leftPos + WIDTH, topPos, leftPos + WIDTH + 1, topPos + panelHeight, 0xFF555555);
 
         // Title
         int titleY = topPos + 7;

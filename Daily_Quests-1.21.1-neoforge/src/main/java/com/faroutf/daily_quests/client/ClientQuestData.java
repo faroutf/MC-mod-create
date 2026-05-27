@@ -17,8 +17,12 @@ public final class ClientQuestData {
     private static boolean hasData;
     private static final Set<String> previouslyCompletedQuestIds = new HashSet<>();
     private static final Set<String> acceptedQuestIds = new HashSet<>();
+    private static int dataVersion = 0;
+
+    public static int getDataVersion() { return dataVersion; }
 
     public static void updateFromPacket(SyncQuestDataPacket packet) {
+        dataVersion++;
         // Detect new completions for toast
         if (hasData && packet.questDay() == questDay) {
             for (var entry : packet.entries()) {
