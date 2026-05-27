@@ -1,5 +1,6 @@
 package com.faroutf.daily_quests.client;
 
+import com.faroutf.daily_quests.client.gui.QuestToast;
 import com.faroutf.daily_quests.quest.QuestCategory;
 import com.faroutf.daily_quests.network.SyncQuestDataPacket;
 
@@ -14,8 +15,26 @@ public final class ClientQuestData {
     private static final Set<QuestCategory> completedCategories = EnumSet.noneOf(QuestCategory.class);
     private static boolean rewardClaimed;
     private static boolean hasData;
+    private static final Set<String> previouslyCompletedQuestIds = new HashSet<>();
 
     public static void updateFromPacket(SyncQuestDataPacket packet) {
+        // Detect new completions for toast
+        if (hasData && packet.questDay() == questDay) {
+            for (var entry : packet.entries()) {
+                if (entry.completed() && !previouslyCompletedQuestIds.contains(entry.questId())) {
+                    QuestToast.show("Quest Complete: " + entry.questId(), 0x55FF55);
+                }
+            }
+            // Check for new category completion
+            for (QuestCategory cat : packet.completedCategories()) {
+                if (!completedCategories.contains(cat)) {
+                    String catName = net.minecraft.network.chat.Component.translatable(
+                        "category.daily_quests." + cat.getName()).getString();
+                    QuestToast.show("Category Complete: " + catName, 0xFFAA00);
+                }
+            }
+        }
+
         questDay = packet.questDay();
         primaryCategories.clear();
         primaryCategories.addAll(packet.primaryCategories());
@@ -25,6 +44,13 @@ public final class ClientQuestData {
         completedCategories.addAll(packet.completedCategories());
         rewardClaimed = packet.rewardClaimed();
         hasData = true;
+
+        previouslyCompletedQuestIds.clear();
+        for (var entry : packet.entries()) {
+            if (entry.completed()) {
+                previouslyCompletedQuestIds.add(entry.questId());
+            }
+        }
     }
 
     public static void clear() {
