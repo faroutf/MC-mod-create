@@ -11,6 +11,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -19,7 +20,8 @@ public record SyncQuestDataPacket(
     List<QuestCategory> primaryCategories,
     List<QuestProgressEntry> entries,
     Set<QuestCategory> completedCategories,
-    boolean rewardClaimed
+    boolean rewardClaimed,
+    Set<String> acceptedQuestIds
 ) implements CustomPacketPayload {
 
     public static final Type<SyncQuestDataPacket> TYPE =
@@ -68,6 +70,19 @@ public record SyncQuestDataPacket(
         }
     );
 
+    private static final StreamCodec<FriendlyByteBuf, Set<String>> STRING_SET_CODEC = StreamCodec.of(
+        (buf, set) -> {
+            buf.writeVarInt(set.size());
+            for (String s : set) buf.writeUtf(s);
+        },
+        buf -> {
+            int size = buf.readVarInt();
+            Set<String> set = new HashSet<>();
+            for (int i = 0; i < size; i++) set.add(buf.readUtf());
+            return set;
+        }
+    );
+
     public static final StreamCodec<FriendlyByteBuf, SyncQuestDataPacket> STREAM_CODEC = StreamCodec.composite(
         StreamCodec.of(FriendlyByteBuf::writeVarLong, FriendlyByteBuf::readVarLong),
         SyncQuestDataPacket::questDay,
@@ -79,6 +94,8 @@ public record SyncQuestDataPacket(
         SyncQuestDataPacket::completedCategories,
         StreamCodec.of(FriendlyByteBuf::writeBoolean, FriendlyByteBuf::readBoolean),
         SyncQuestDataPacket::rewardClaimed,
+        STRING_SET_CODEC,
+        SyncQuestDataPacket::acceptedQuestIds,
         SyncQuestDataPacket::new
     );
 

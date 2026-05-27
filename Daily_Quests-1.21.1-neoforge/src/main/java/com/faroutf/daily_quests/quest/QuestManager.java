@@ -23,6 +23,7 @@ public final class QuestManager {
         data.getPrimaryCategories().clear();
         data.getCompletedCategories().clear();
         data.setRewardClaimed(false);
+        data.getAcceptedQuestIds().clear();
 
         RandomSource random = player.getRandom();
 
@@ -74,17 +75,18 @@ public final class QuestManager {
         for (QuestProgress progress : quests) {
             if (progress.isCompleted()) continue;
 
+            // Only track progress for accepted quests
+            if (!data.isAccepted(progress.getQuestId())) continue;
+
             QuestDefinition def = definitionRegistry.get(progress.getQuestId());
             if (def == null || !def.targetId().equals(targetId)) continue;
 
             if (progress.advance(amount)) {
                 anyCompleted = true;
                 DailyQuests.LOGGER.debug("Player {} completed quest {}", player.getName().getString(), progress.getQuestId());
-
-                // Check if this category is now complete (any 1 quest done)
-                checkCategoryComplete(data, category);
+                data.recalcCompletedCategories();
             }
-            break; // Only advance the first matching non-completed quest
+            break;
         }
 
         if (anyCompleted) {
@@ -93,28 +95,33 @@ public final class QuestManager {
         return anyCompleted;
     }
 
-    private static void checkCategoryComplete(PlayerQuestData data, QuestCategory category) {
-        List<QuestProgress> quests = data.getQuests(category);
-        if (quests == null) return;
+    public static boolean acceptQuest(ServerPlayer player, String questId) {
+        PlayerQuestData data = player.getData(ModAttachments.PLAYER_QUEST_DATA.get());
+        if (!data.hasQuests()) return false;
+        if (!data.canAcceptQuest(questId)) return false;
 
-        for (QuestProgress p : quests) {
-            if (p.isCompleted()) {
-                data.getCompletedCategories().add(category);
-                return;
-            }
-        }
+        QuestDefinition def = definitionRegistry.get(questId);
+        if (def == null) return false;
+
+        if (!data.canAcceptQuestInCategory(def.category())) return false;
+
+        data.acceptQuest(questId);
+        syncToPlayer(player);
+        return true;
     }
 
-    public static int getCompletedPrimaryCount(PlayerQuestData data) {
-        int count = 0;
-        for (QuestCategory cat : data.getPrimaryCategories()) {
-            if (data.getCompletedCategories().contains(cat)) count++;
-        }
-        return count;
+    public static boolean cancelQuest(ServerPlayer player, String questId) {
+        PlayerQuestData data = player.getData(ModAttachments.PLAYER_QUEST_DATA.get());
+        if (!data.hasQuests()) return false;
+        if (!data.isAccepted(questId)) return false;
+
+        data.cancelQuest(questId);
+        syncToPlayer(player);
+        return true;
     }
 
     public static boolean canClaimReward(PlayerQuestData data) {
-        return !data.isRewardClaimed() && getCompletedPrimaryCount(data) >= 3;
+        return data.canClaimReward();
     }
 
     public static QuestDefinition getDefinitionById(String questId) {
@@ -149,8 +156,10 @@ public final class QuestManager {
 
         Set<QuestCategory> completed = EnumSet.copyOf(data.getCompletedCategories());
 
+        Set<String> acceptedIds = new HashSet<>(data.getAcceptedQuestIds());
+
         return new SyncQuestDataPacket(
-            data.getQuestDay(), primary, entries, completed, data.isRewardClaimed()
+            data.getQuestDay(), primary, entries, completed, data.isRewardClaimed(), acceptedIds
         );
     }
 }

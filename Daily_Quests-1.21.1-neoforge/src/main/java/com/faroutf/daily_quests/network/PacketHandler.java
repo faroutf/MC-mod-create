@@ -26,6 +26,18 @@ public class PacketHandler {
             ClaimRewardPacket.STREAM_CODEC,
             ClaimRewardPacket::handle
         );
+
+        registrar.playToServer(
+            AcceptQuestPacket.TYPE,
+            AcceptQuestPacket.STREAM_CODEC,
+            AcceptQuestPacket::handle
+        );
+
+        registrar.playToServer(
+            CancelQuestPacket.TYPE,
+            CancelQuestPacket.STREAM_CODEC,
+            CancelQuestPacket::handle
+        );
     }
 
     public static void sendToPlayer(SyncQuestDataPacket packet, ServerPlayer player) {

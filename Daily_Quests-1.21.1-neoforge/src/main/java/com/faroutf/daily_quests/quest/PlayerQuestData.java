@@ -15,6 +15,7 @@ public class PlayerQuestData implements INBTSerializable<CompoundTag> {
     private final Map<QuestCategory, List<QuestProgress>> quests = new EnumMap<>(QuestCategory.class);
     private final Set<QuestCategory> completedCategories = EnumSet.noneOf(QuestCategory.class);
     private boolean rewardClaimed = false;
+    private final Set<String> acceptedQuestIds = new HashSet<>();
 
     public PlayerQuestData() {
         for (QuestCategory cat : QuestCategory.VALUES) {
@@ -40,12 +41,61 @@ public class PlayerQuestData implements INBTSerializable<CompoundTag> {
 
     public boolean hasQuests() { return questDay >= 0 && !quests.values().stream().allMatch(List::isEmpty); }
 
-    public int getCompletedCategoryCount() {
+    // --- Accepted quests ---
+    public Set<String> getAcceptedQuestIds() { return acceptedQuestIds; }
+    public boolean isAccepted(String questId) { return acceptedQuestIds.contains(questId); }
+    public int getAcceptedCount() { return acceptedQuestIds.size(); }
+
+    public int getAcceptedCountForCategory(QuestCategory cat) {
         int count = 0;
-        for (QuestCategory cat : primaryCategories) {
-            if (completedCategories.contains(cat)) count++;
+        for (QuestProgress p : quests.get(cat)) {
+            if (acceptedQuestIds.contains(p.getQuestId())) count++;
         }
         return count;
+    }
+
+    public boolean canAcceptQuest(String questId) {
+        if (acceptedQuestIds.size() >= 3) return false;
+        return true;
+    }
+
+    public boolean canAcceptQuestInCategory(QuestCategory cat) {
+        return getAcceptedCountForCategory(cat) == 0;
+    }
+
+    public void acceptQuest(String questId) {
+        acceptedQuestIds.add(questId);
+    }
+
+    public void cancelQuest(String questId) {
+        acceptedQuestIds.remove(questId);
+        // Reset progress for this quest
+        for (var list : quests.values()) {
+            for (QuestProgress p : list) {
+                if (p.getQuestId().equals(questId)) {
+                    p.setCurrentAmount(0);
+                    p.setCompleted(false);
+                }
+            }
+        }
+        // Re-check completed categories
+        recalcCompletedCategories();
+    }
+
+    public void recalcCompletedCategories() {
+        completedCategories.clear();
+        for (QuestCategory cat : QuestCategory.VALUES) {
+            for (QuestProgress p : quests.get(cat)) {
+                if (p.isCompleted() && acceptedQuestIds.contains(p.getQuestId())) {
+                    completedCategories.add(cat);
+                    break;
+                }
+            }
+        }
+    }
+
+    public int getCompletedCategoryCount() {
+        return completedCategories.size();
     }
 
     public boolean canClaimReward() {
@@ -86,6 +136,12 @@ public class PlayerQuestData implements INBTSerializable<CompoundTag> {
         tag.put("completedCategories", completedTag);
 
         tag.putBoolean("rewardClaimed", rewardClaimed);
+
+        ListTag acceptedTag = new ListTag();
+        for (String id : acceptedQuestIds) {
+            acceptedTag.add(StringTag.valueOf(id));
+        }
+        tag.put("acceptedQuestIds", acceptedTag);
         return tag;
     }
 
@@ -120,5 +176,10 @@ public class PlayerQuestData implements INBTSerializable<CompoundTag> {
         }
 
         rewardClaimed = tag.getBoolean("rewardClaimed");
+
+        acceptedQuestIds.clear();
+        for (Tag t : tag.getList("acceptedQuestIds", Tag.TAG_STRING)) {
+            acceptedQuestIds.add(t.getAsString());
+        }
     }
 }
