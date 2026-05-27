@@ -16,6 +16,7 @@ public final class ClientQuestData {
     private static boolean rewardClaimed;
     private static boolean hasData;
     private static final Set<String> previouslyCompletedQuestIds = new HashSet<>();
+    private static final Set<String> acceptedQuestIds = new HashSet<>();
 
     public static void updateFromPacket(SyncQuestDataPacket packet) {
         // Detect new completions for toast
@@ -25,7 +26,6 @@ public final class ClientQuestData {
                     QuestToast.show("Quest Complete: " + entry.questId(), 0x55FF55);
                 }
             }
-            // Check for new category completion
             for (QuestCategory cat : packet.completedCategories()) {
                 if (!completedCategories.contains(cat)) {
                     String catName = net.minecraft.network.chat.Component.translatable(
@@ -43,6 +43,8 @@ public final class ClientQuestData {
         completedCategories.clear();
         completedCategories.addAll(packet.completedCategories());
         rewardClaimed = packet.rewardClaimed();
+        acceptedQuestIds.clear();
+        acceptedQuestIds.addAll(packet.acceptedQuestIds());
         hasData = true;
 
         previouslyCompletedQuestIds.clear();
@@ -60,6 +62,8 @@ public final class ClientQuestData {
         completedCategories.clear();
         rewardClaimed = false;
         hasData = false;
+        acceptedQuestIds.clear();
+        previouslyCompletedQuestIds.clear();
     }
 
     public static long getQuestDay() { return questDay; }
@@ -72,12 +76,19 @@ public final class ClientQuestData {
     public static boolean isRewardClaimed() { return rewardClaimed; }
     public static boolean hasData() { return hasData; }
 
-    public static int getCompletedPrimaryCount() {
-        int count = 0;
-        for (QuestCategory cat : primaryCategories) {
-            if (completedCategories.contains(cat)) count++;
+    public static boolean isAccepted(String questId) { return acceptedQuestIds.contains(questId); }
+    public static int getAcceptedCount() { return acceptedQuestIds.size(); }
+    public static Set<String> getAcceptedQuestIds() { return Collections.unmodifiableSet(acceptedQuestIds); }
+    public static boolean canAcceptMore() { return acceptedQuestIds.size() < 3; }
+    public static boolean canAcceptInCategory(QuestCategory cat) {
+        for (var entry : entries) {
+            if (entry.category() == cat && acceptedQuestIds.contains(entry.questId())) return false;
         }
-        return count;
+        return true;
+    }
+
+    public static int getCompletedPrimaryCount() {
+        return completedCategories.size();
     }
 
     public static boolean canClaimReward() {

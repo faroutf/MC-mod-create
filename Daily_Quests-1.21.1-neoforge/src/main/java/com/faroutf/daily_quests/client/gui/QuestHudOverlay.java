@@ -4,11 +4,9 @@ import com.faroutf.daily_quests.Config;
 import com.faroutf.daily_quests.DailyQuests;
 import com.faroutf.daily_quests.client.ClientQuestData;
 import com.faroutf.daily_quests.network.SyncQuestDataPacket;
-import com.faroutf.daily_quests.quest.QuestCategory;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
@@ -17,8 +15,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.minecraft.world.scores.DisplaySlot;
 import net.minecraft.world.scores.Objective;
-
-import java.util.List;
 
 @EventBusSubscriber(modid = DailyQuests.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public class QuestHudOverlay {
@@ -41,39 +37,51 @@ public class QuestHudOverlay {
         Objective sidebar = mc.player.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
         if (sidebar != null) return;
 
+        // Only show accepted quests
+        var accepted = ClientQuestData.getAcceptedQuestIds();
+        if (accepted.isEmpty()) return;
+
         int screenWidth = mc.getWindow().getGuiScaledWidth();
-        int x = screenWidth - 130;
+        int x = screenWidth - 150;
         int y = 10;
 
         // Background
-        graphics.fill(x - 4, y - 4, x + 125, y + 75, 0x80000000);
+        int entryCount = accepted.size();
+        int bgHeight = 22 + entryCount * 12;
+        graphics.fill(x - 4, y - 4, x + 145, y + bgHeight, 0x80000000);
 
         // Title
         graphics.drawString(mc.font,
-            Component.translatable("screen.daily_quests.quests"), x, y, 0xFFFFFF);
+            "Quests " + entryCount + "/3", x, y, 0xFFFFFF);
         y += 14;
 
-        // Category summaries
-        for (QuestCategory cat : QuestCategory.VALUES) {
-            List<SyncQuestDataPacket.QuestProgressEntry> entries = ClientQuestData.getEntriesForCategory(cat);
-            if (entries.isEmpty()) continue;
+        // Only show accepted quests
+        for (var entry : ClientQuestData.getEntries()) {
+            if (!accepted.contains(entry.questId())) continue;
 
-            boolean catComplete = ClientQuestData.getCompletedCategories().contains(cat);
+            String desc;
+            // Build short description from questId
+            String questId = entry.questId();
+            int underscoreIdx = questId.indexOf('_');
+            String target = underscoreIdx >= 0 ? questId.substring(underscoreIdx + 1) : questId;
+            // Clean up target name for display
+            target = target.replace('_', ' ');
+            // Capitalize
+            if (target.length() > 0) {
+                target = Character.toUpperCase(target.charAt(0)) + target.substring(1);
+            }
+            // Truncate if too long
+            if (target.length() > 14) target = target.substring(0, 13);
 
-            String catName = Component.translatable("category.daily_quests." + cat.getName()).getString();
-            String shortName = catName.length() > 8 ? catName.substring(0, 7) : catName;
+            if (entry.completed()) {
+                desc = target + " (✓)";
+            } else {
+                desc = target + " (" + entry.currentAmount() + "/" + entry.requiredAmount() + ")";
+            }
 
-            int doneCount = (int) entries.stream().filter(SyncQuestDataPacket.QuestProgressEntry::completed).count();
-            String line = shortName + " " + doneCount + "/" + entries.size();
-
-            graphics.drawString(mc.font, line, x, y, catComplete ? 0x55FF55 : 0xAAAAAA);
-            y += 11;
+            int color = entry.completed() ? 0x55FF55 : 0xCCCCCC;
+            graphics.drawString(mc.font, desc, x, y, color);
+            y += 12;
         }
-
-        // Progress
-        y += 2;
-        int completed = ClientQuestData.getCompletedPrimaryCount();
-        int color = completed >= 3 ? 0x55FF55 : 0xAAAAAA;
-        graphics.drawString(mc.font, completed + "/3", x, y, color);
     }
 }

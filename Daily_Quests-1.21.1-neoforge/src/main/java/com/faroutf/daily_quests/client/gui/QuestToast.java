@@ -5,7 +5,6 @@ import com.faroutf.daily_quests.DailyQuests;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -38,7 +37,7 @@ public class QuestToast {
 
     private static void renderToastLayer(GuiGraphics graphics, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.screen != null) return;
+        if (mc.player == null) return;
 
         // Progress or grab next toast
         if (activeToast != null) {
@@ -55,8 +54,11 @@ public class QuestToast {
         if (activeToast == null) return;
 
         int screenWidth = mc.getWindow().getGuiScaledWidth();
+        int screenHeight = mc.getWindow().getGuiScaledHeight();
         int centerX = screenWidth / 2;
+        int centerY = screenHeight / 2;
 
+        // Fade animation
         float alpha = 1.0f;
         if (displayTicks < 10) {
             alpha = displayTicks / 10f;
@@ -65,20 +67,29 @@ public class QuestToast {
         }
         alpha = Math.max(0, Math.min(1, alpha));
 
-        int bgColor = ((int)(alpha * 0x80) << 24) | 0x000000;
+        // Scale up for larger font
+        float scale = 1.5f;
         String text = activeToast.message();
-        int textWidth = mc.font.width(text);
-        int padding = 12;
+        int textWidth = (int)(mc.font.width(text) * scale);
 
+        // Semi-transparent background
+        int padding = 16;
         int x1 = centerX - textWidth / 2 - padding;
-        int y1 = 30;
+        int y1 = centerY - 20;
         int x2 = centerX + textWidth / 2 + padding;
-        int y2 = 50;
+        int y2 = centerY + 20;
 
-        graphics.fill(x1, y1, x2, y2, bgColor);
-        graphics.fill(x1, y1, x2, y2, ((int)(alpha * 0x20) << 24) | (activeToast.color() & 0x00FFFFFF));
+        int bgAlpha = (int)(alpha * 0xC0);
+        graphics.fill(x1, y1, x2, y2, (bgAlpha << 24) | 0x000000);
+        graphics.fill(x1, y1, x2, y2, ((int)(alpha * 0x30) << 24) | (activeToast.color() & 0x00FFFFFF));
 
+        // Draw text with scale
         int textColor = ((int)(alpha * 0xFF) << 24) | activeToast.color();
-        graphics.drawCenteredString(mc.font, text, centerX, y1 + padding / 2, textColor);
+        var pose = graphics.pose();
+        pose.pushPose();
+        pose.translate(centerX, centerY - 5, 0);
+        pose.scale(scale, scale, 1);
+        graphics.drawCenteredString(mc.font, text, 0, 0, textColor);
+        pose.popPose();
     }
 }
