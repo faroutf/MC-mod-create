@@ -55,7 +55,7 @@ public final class QuestManager {
         }
 
         DailyQuests.LOGGER.debug("Generated daily quests for {} on day {}", player.getName().getString(), currentDay);
-        syncToClient(player, data);
+        syncToPlayer(player);
     }
 
     /**
@@ -88,7 +88,7 @@ public final class QuestManager {
         }
 
         if (anyCompleted) {
-            syncToClient(player, data);
+            syncToPlayer(player);
         }
         return anyCompleted;
     }
@@ -125,7 +125,8 @@ public final class QuestManager {
         definitionRegistry.clear();
     }
 
-    private static void syncToClient(ServerPlayer player, PlayerQuestData data) {
+    public static void syncToPlayer(ServerPlayer player) {
+        PlayerQuestData data = player.getData(ModAttachments.PLAYER_QUEST_DATA.get());
         SyncQuestDataPacket packet = buildSyncPacket(data);
         PacketHandler.sendToPlayer(packet, player);
     }

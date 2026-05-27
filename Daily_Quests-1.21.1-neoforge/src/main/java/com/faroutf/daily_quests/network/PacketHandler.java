@@ -20,6 +20,12 @@ public class PacketHandler {
             SyncQuestDataPacket.STREAM_CODEC,
             SyncQuestDataPacket::handle
         );
+
+        registrar.playToServer(
+            ClaimRewardPacket.TYPE,
+            ClaimRewardPacket.STREAM_CODEC,
+            ClaimRewardPacket::handle
+        );
     }
 
     public static void sendToPlayer(SyncQuestDataPacket packet, ServerPlayer player) {
