@@ -141,6 +141,7 @@ execute as @a unless entity @s[tag=hs_active] run scoreboard players set @s hs_n
 execute as @a unless score @s hs_sleep_last matches 1.. run scoreboard players set @s hs_sleep_last 0
 execute as @a unless score @s hs_submit_last matches 1.. run scoreboard players set @s hs_submit_last 0
 execute as @a unless score @s hs_day matches 1.. run scoreboard players set @s hs_day 0
+scoreboard players enable @a hs_tasks
 
 # --- Give submit tool to all players ---
 function hard_survival_1:player/give_submit_tool

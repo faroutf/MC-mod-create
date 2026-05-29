@@ -16,6 +16,7 @@ execute as @a run function hard_survival_1:tasks/submit_check
 execute if score #tick hs_temp matches 0 run function hard_survival_1:tasks/actionbar_update
 
 # --- Trigger: hs_tasks (player runs /trigger hs_tasks) ---
+execute as @a run scoreboard players enable @s hs_tasks
 execute as @a if score @s hs_tasks matches 1.. run function hard_survival_1:tasks/show_tasks
 
 # --- Tick counter for rate-limiting ---
